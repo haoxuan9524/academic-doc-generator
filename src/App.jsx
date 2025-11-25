@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Input, Button, Card, CardBody, Divider, ScrollShadow, Spacer, Select, SelectItem } from "@heroui/react";
+import { motion } from "framer-motion";
 import html2canvas from 'html2canvas';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
@@ -8,16 +9,21 @@ import { generateRandomData } from './utils/dataGenerator';
 import TuitionTemplate from './components/TuitionTemplate';
 import TranscriptTemplate from './components/TranscriptTemplate';
 import ScheduleTemplate from './components/ScheduleTemplate';
+import AdmissionLetterTemplate from './components/AdmissionLetterTemplate';
+import EnrollmentCertificateTemplate from './components/EnrollmentCertificateTemplate';
 
 const App = () => {
   const [formData, setFormData] = useState(generateRandomData());
 
-  const [exportMode, setExportMode] = useState("stitched-horizontal"); // Default to horizontal stitched
+  const [exportMode, setExportMode] = useState("stitched-horizontal"); 
   const [isGenerating, setIsGenerating] = useState(false);
+  const [scale, setScale] = useState(0.45); // Initial scale smaller
 
   const tuitionRef = useRef(null);
   const transcriptRef = useRef(null);
   const scheduleRef = useRef(null);
+  const admissionRef = useRef(null);
+  const enrollmentRef = useRef(null);
   const containerRef = useRef(null);
 
   const handleInputChange = (e) => {
@@ -33,9 +39,10 @@ const App = () => {
     if (!containerRef.current) return;
     setIsGenerating(true);
     
-    // Store original styles
+    // Add exporting class to reset transforms
+    containerRef.current.classList.add('exporting');
+    
     const originalStyle = containerRef.current.style.cssText;
-    const originalClass = containerRef.current.className;
 
     try {
       // Temporarily enforce styles if horizontal mode
@@ -48,19 +55,41 @@ const App = () => {
           width: max-content;
           justify-content: flex-start;
           align-items: flex-start;
+          position: relative;
+          background-color: #ffffff;
         `;
-        // We need to ensure no class conflicts
-        containerRef.current.className = ""; 
+      } else {
+        // For grid export, ensuring it captures everything by fitting content
+        containerRef.current.style.width = "max-content";
+        containerRef.current.style.height = "max-content";
+        containerRef.current.style.position = "relative";
+        containerRef.current.style.backgroundColor = "#ffffff";
       }
 
+      // Small delay to allow style reflow
+      await new Promise(resolve => setTimeout(resolve, 300)); // Increased delay slightly
+
       const canvas = await html2canvas(containerRef.current, {
-        backgroundColor: '#ffffff', // Ensure background is white for the stitched image
+        backgroundColor: '#ffffff', 
         scale: 2,
         useCORS: true,
-        ignoreElements: (element) => element.classList.contains('doc-label'), // Hide labels
-        onclone: (clonedDoc) => {
-            // Optional: further manipulation of the cloned DOM if needed
-            // But modifying the live DOM before capture is usually more reliable for layout
+        ignoreElements: (element) => element.classList.contains('doc-label'), 
+        logging: false,
+        // Force no background transparency
+        onclone: (document) => {
+            const element = document.querySelector('.exporting');
+            if (element) {
+                element.style.backgroundColor = '#ffffff';
+                element.style.backgroundImage = 'none';
+                element.style.boxShadow = 'none';
+                element.style.backdropFilter = 'none'; // CRITICAL: Remove any frost effect
+            }
+            // Also ensure all document cards have solid backgrounds
+            const cards = document.querySelectorAll('.document-card > div'); // The inner div with shadow
+            cards.forEach(card => {
+                card.style.boxShadow = 'none';
+                card.style.backgroundColor = '#ffffff';
+            });
         }
       });
       
@@ -68,22 +97,16 @@ const App = () => {
         saveAs(blob, "SheerID_Documents_Combined.png");
         setIsGenerating(false);
         
-        // Restore styles
-        if (forceHorizontal) {
-            containerRef.current.style.cssText = originalStyle;
-            containerRef.current.className = originalClass;
-        }
+        // Restore styles and remove class
+        containerRef.current.classList.remove('exporting');
+        containerRef.current.style.cssText = originalStyle;
       });
     } catch (err) {
       console.error(err);
       alert("Export failed");
       setIsGenerating(false);
-      
-      // Restore styles in case of error
-      if (forceHorizontal) {
-        containerRef.current.style.cssText = originalStyle;
-        containerRef.current.className = originalClass;
-    }
+      containerRef.current.classList.remove('exporting');
+      containerRef.current.style.cssText = originalStyle;
     }
   };
 
@@ -102,6 +125,7 @@ const App = () => {
         return { name, data: canvas.toDataURL('image/png').split(',')[1] };
       };
 
+      // Only capture the main 3 documents for the ZIP
       const images = await Promise.all([
         capture(tuitionRef, "Tuition_Statement.png"),
         capture(transcriptRef, "Transcript.png"),
@@ -123,9 +147,29 @@ const App = () => {
     }
   };
 
+  const exportSingle = async (ref, filename) => {
+    if (!ref.current) return;
+    setIsGenerating(true);
+    try {
+        const canvas = await html2canvas(ref.current, {
+            backgroundColor: '#ffffff',
+            scale: 2,
+            useCORS: true
+        });
+        canvas.toBlob((blob) => {
+            saveAs(blob, filename);
+            setIsGenerating(false);
+        });
+    } catch (err) {
+        console.error(err);
+        alert("Export failed");
+        setIsGenerating(false);
+    }
+  };
+
   const handleExport = () => {
     if (exportMode === "stitched") {
-      exportStitched(false);
+      exportStitched(false); 
     } else if (exportMode === "stitched-horizontal") {
       exportStitched(true);
     } else {
@@ -133,10 +177,13 @@ const App = () => {
     }
   };
 
+  const handleZoomIn = () => setScale(prev => Math.min(prev + 0.1, 2));
+  const handleZoomOut = () => setScale(prev => Math.max(prev - 0.1, 0.2));
+
   return (
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
       {/* Sidebar Controls */}
-      <div className="w-80 flex-shrink-0 border-r border-divider bg-content1">
+      <div className="w-80 flex-shrink-0 border-r border-divider bg-content1 z-20">
         <ScrollShadow className="h-full p-6">
           <h2 className="text-2xl font-bold mb-4 text-primary">Input Information</h2>
 
@@ -189,48 +236,125 @@ const App = () => {
             >
               {isGenerating ? "Generating..." : "Download"}
             </Button>
+
+            <Divider className="my-4" />
+            <h3 className="text-xl font-semibold mb-2">Extra Documents</h3>
+            <div className="flex flex-col gap-3">
+                <Button 
+                    color="default" 
+                    variant="flat" 
+                    className="w-full" 
+                    onClick={() => exportSingle(admissionRef, "Admission_Letter.png")}
+                    isLoading={isGenerating}
+                >
+                    Download Admission Letter
+                </Button>
+                <Button 
+                    color="default" 
+                    variant="flat" 
+                    className="w-full" 
+                    onClick={() => exportSingle(enrollmentRef, "Enrollment_Certificate.png")}
+                    isLoading={isGenerating}
+                >
+                    Download Enrollment Cert
+                </Button>
+            </div>
           </div>
         </ScrollShadow>
       </div>
 
-      {/* Main Preview Area */}
-      <div className="flex-grow overflow-y-auto bg-zinc-900 p-8">
-        <div className="flex justify-center">
-            {/* Container for stitching - Flex row to simulate horizontal stitch if needed, or grid */}
-            {/* Original had grid-template-columns: repeat(auto-fit, ...). 
-                If we want "Stitched" to look like a long horizontal strip (like the print media query in original), 
-                we can conditionally style this.
-                However, for preview, vertical stack or grid is better.
-                Let's use a flexible wrap layout.
-            */}
-            <div 
-                ref={containerRef} 
-                className="flex flex-row flex-wrap justify-center gap-5 w-max max-w-full"
-                style={{
-                    // If stitching, we might want to force a row layout during capture?
-                    // For now, we'll let html2canvas capture as is.
-                    // To ensure specific stitch layout (e.g. side-by-side), we might need a temporary container.
-                    // But the original user asked for "Three separate or stitched".
-                    // Assuming "Stitched" means combined into one image. 
-                    // If the preview is side-by-side, the image will be side-by-side.
-                }}
+      {/* Main Preview Area - Infinite Canvas Style */}
+      <div className="flex-grow overflow-hidden bg-zinc-900 relative cursor-grab active:cursor-grabbing flex items-center justify-center">
+        {/* Dot Pattern Background */}
+        <div className="absolute inset-0 pointer-events-none opacity-20" 
+             style={{
+                 backgroundImage: 'radial-gradient(#555 1px, transparent 1px)',
+                 backgroundSize: '20px 20px'
+             }}
+        />
+        
+        {/* Zoom Controls */}
+        <div className="absolute bottom-8 right-8 flex gap-2 z-30">
+            <Button isIconOnly color="secondary" variant="flat" onClick={handleZoomOut} aria-label="Zoom Out">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 12h-15" />
+                </svg>
+            </Button>
+            <div className="bg-zinc-800 text-white px-3 py-2 rounded-lg flex items-center font-mono text-sm">
+                {Math.round(scale * 100)}%
+            </div>
+            <Button isIconOnly color="secondary" variant="flat" onClick={handleZoomIn} aria-label="Zoom In">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+            </Button>
+        </div>
+        
+        {/* Canvas Container - Scaled to fit view */}
+        <motion.div 
+            ref={containerRef} 
+            className="relative flex flex-row gap-10 p-20 origin-center"
+            style={{
+                width: 'max-content',
+                height: 'max-content',
+                scale: scale // Bind scale to state
+            }}
+        >
+            <motion.div 
+                drag 
+                dragMomentum={false}
+                className="relative group document-card"
             >
-                <div className="relative group">
-                    <div className="absolute -top-6 left-0 bg-zinc-800 text-white px-3 py-1 rounded-t text-sm doc-label">Tuition Statement</div>
+                <div className="absolute -top-8 left-0 bg-zinc-800 text-white px-3 py-1 rounded-t text-sm doc-label shadow-lg">Tuition Statement</div>
+                <div className="shadow-2xl transition-shadow hover:shadow-blue-500/20">
                     <TuitionTemplate ref={tuitionRef} data={formData} />
                 </div>
-                
-                <div className="relative group">
-                    <div className="absolute -top-6 left-0 bg-zinc-800 text-white px-3 py-1 rounded-t text-sm doc-label">Transcript</div>
+            </motion.div>
+            
+            <motion.div 
+                drag 
+                dragMomentum={false}
+                className="relative group document-card"
+            >
+                <div className="absolute -top-8 left-0 bg-zinc-800 text-white px-3 py-1 rounded-t text-sm doc-label shadow-lg">Transcript</div>
+                <div className="shadow-2xl transition-shadow hover:shadow-blue-500/20">
                     <TranscriptTemplate ref={transcriptRef} data={formData} />
                 </div>
+            </motion.div>
 
-                <div className="relative group">
-                    <div className="absolute -top-6 left-0 bg-zinc-800 text-white px-3 py-1 rounded-t text-sm doc-label">Course Schedule</div>
+            <motion.div 
+                drag 
+                dragMomentum={false}
+                className="relative group document-card"
+            >
+                <div className="absolute -top-8 left-0 bg-zinc-800 text-white px-3 py-1 rounded-t text-sm doc-label shadow-lg">Course Schedule</div>
+                <div className="shadow-2xl transition-shadow hover:shadow-blue-500/20">
                     <ScheduleTemplate ref={scheduleRef} data={formData} />
                 </div>
-            </div>
-        </div>
+            </motion.div>
+
+            <motion.div 
+                drag 
+                dragMomentum={false}
+                className="relative group document-card"
+            >
+                <div className="absolute -top-8 left-0 bg-zinc-800 text-white px-3 py-1 rounded-t text-sm doc-label shadow-lg">Admission Letter</div>
+                <div className="shadow-2xl transition-shadow hover:shadow-blue-500/20">
+                    <AdmissionLetterTemplate ref={admissionRef} data={formData} />
+                </div>
+            </motion.div>
+
+            <motion.div 
+                drag 
+                dragMomentum={false}
+                className="relative group document-card"
+            >
+                <div className="absolute -top-8 left-0 bg-zinc-800 text-white px-3 py-1 rounded-t text-sm doc-label shadow-lg">Enrollment Cert</div>
+                <div className="shadow-2xl transition-shadow hover:shadow-blue-500/20">
+                    <EnrollmentCertificateTemplate ref={enrollmentRef} data={formData} />
+                </div>
+            </motion.div>
+        </motion.div>
       </div>
     </div>
   );

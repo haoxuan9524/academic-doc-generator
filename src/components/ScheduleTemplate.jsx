@@ -9,7 +9,7 @@ const ScheduleTemplate = forwardRef(({ data }, ref) => {
         color: '#333',
         backgroundColor: 'white',
         width: '800px',
-        minHeight: '1000px',
+        minHeight: '1000px', // Fixed height to match Transcript
         boxSizing: 'border-box'
     }}>
         <div style={{ textAlign: 'center', marginBottom: '20px' }}>

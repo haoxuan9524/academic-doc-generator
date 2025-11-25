@@ -160,10 +160,13 @@ export const generateRandomData = () => {
   const totalFees = Object.values(fees).reduce((a, b) => a + b, 0) + diffTuition;
   const totalCharges = baseTuition + totalFees;
 
+  const admissionDate = faker.date.past({ years: 1 });
+
   return {
     universityName: university,
     studentName: `${lastName} ${firstName}`, 
     studentID: `${faker.string.numeric(6)}-${faker.string.numeric(4)}`,
+    passportNumber: faker.string.alphanumeric(9).toUpperCase(), // Added passport
     address: `${faker.location.streetAddress()}, ${faker.location.city()}, ${faker.location.state()}`,
     term: "Fall 2024", 
     major: selectedMajor.name, 
@@ -172,6 +175,11 @@ export const generateRandomData = () => {
     statementDate: formatDate(statementDate),
     dueDate: formatDate(dueDate),
     issueDate: formatDate(issueDate),
+    admissionDate: formatDate(admissionDate), // Added admission date
+    officials: {
+        dean: `${faker.person.lastName()}, ${faker.person.firstName()} (PhD)`,
+        registrar: `${faker.person.lastName()}, ${faker.person.firstName()}`
+    },
     tuition: {
         base: baseTuition.toLocaleString('en-US', {style: 'currency', currency: 'USD'}),
         differential: diffTuition.toLocaleString('en-US', {style: 'currency', currency: 'USD'}),

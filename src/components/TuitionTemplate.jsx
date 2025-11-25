@@ -8,8 +8,8 @@ const TuitionTemplate = forwardRef(({ data }, ref) => {
         padding: '40px', 
         color: '#212529',
         backgroundColor: 'white',
-        width: '800px', // Fixed width for consistency
-        minHeight: '1000px',
+        width: '800px', // Fixed width
+        minHeight: '1000px', // Fixed height to match Transcript
         boxSizing: 'border-box'
     }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '3px solid #50212f', paddingBottom: '15px', marginBottom: '20px' }}>
