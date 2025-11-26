@@ -140,11 +140,10 @@ const App = () => {
         return { name, data: canvas.toDataURL('image/png').split(',')[1] };
       };
 
-      // Only capture the main 3 documents for the ZIP
       const images = await Promise.all([
-        capture(tuitionRef, "Tuition_Statement.png"),
-        capture(transcriptRef, "Transcript.png"),
-        capture(scheduleRef, "Schedule.png")
+        capture(hiddenTuitionRef, "Tuition_Statement.png"),
+        capture(hiddenTranscriptRef, "Transcript.png"),
+        capture(hiddenScheduleRef, "Schedule.png")
       ]);
 
       images.forEach(img => {
@@ -163,6 +162,11 @@ const App = () => {
   };
 
   // Hidden refs for export (Always mounted, off-screen)
+  // Using a separate set of refs for export ensures that canvas scaling/drag transforms
+  // do not affect the generated images.
+  const hiddenTuitionRef = useRef(null);
+  const hiddenTranscriptRef = useRef(null);
+  const hiddenScheduleRef = useRef(null);
   const hiddenAdmissionRef = useRef(null);
   const hiddenEnrollmentRef = useRef(null);
 
@@ -301,10 +305,27 @@ const App = () => {
         </ScrollShadow>
       </div>
 
-      {/* Hidden Export Containers */}
-      <div style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}>
-          <AdmissionLetterTemplate ref={hiddenAdmissionRef} data={formData} />
-          <EnrollmentCertificateTemplate ref={hiddenEnrollmentRef} data={formData} />
+      {/* Hidden Export Containers - Rendered purely for capture */}
+      {/* Positioned way off-screen to ensure no visual interference but valid DOM rendering */}
+      <div style={{ position: 'absolute', top: '-9999px', left: '-9999px', display: 'flex', flexDirection: 'column' }}>
+          {/* Core 3 Docs */}
+          <div style={{ backgroundColor: 'white', width: '800px', minHeight: '1000px' }}>
+            <TuitionTemplate ref={hiddenTuitionRef} data={formData} />
+          </div>
+          <div style={{ backgroundColor: 'white', width: '800px', minHeight: '1000px' }}>
+            <TranscriptTemplate ref={hiddenTranscriptRef} data={formData} />
+          </div>
+          <div style={{ backgroundColor: 'white', width: '800px', minHeight: '1000px' }}>
+            <ScheduleTemplate ref={hiddenScheduleRef} data={formData} />
+          </div>
+          
+          {/* Extra 2 Docs */}
+          <div style={{ backgroundColor: 'white', width: '800px', minHeight: '1000px' }}>
+            <AdmissionLetterTemplate ref={hiddenAdmissionRef} data={formData} />
+          </div>
+          <div style={{ backgroundColor: 'white', width: '800px', minHeight: '1000px' }}>
+            <EnrollmentCertificateTemplate ref={hiddenEnrollmentRef} data={formData} />
+          </div>
       </div>
 
       {/* Main Preview Area - Infinite Canvas Style */}
