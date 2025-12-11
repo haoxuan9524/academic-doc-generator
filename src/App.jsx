@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Input, Button, Card, CardBody, Divider, ScrollShadow, Spacer, Select, SelectItem, Tabs, Tab } from "@heroui/react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -312,13 +313,13 @@ const App = () => {
               className={`px-3 py-1 text-xs font-medium ${userMode === "student" ? "bg-primary text-white" : "bg-content2 text-foreground/60"}`}
               onClick={() => switchMode("student")}
             >
-              Student
+              学生
             </button>
             <button 
               className={`px-3 py-1 text-xs font-medium ${userMode === "teacher" ? "bg-primary text-white" : "bg-content2 text-foreground/60"}`}
               onClick={() => switchMode("teacher")}
             >
-              Teacher
+              老师
             </button>
           </div>
         </div>
